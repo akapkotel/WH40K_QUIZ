@@ -11,6 +11,7 @@ import arcade
 
 SCREEN_W, SCREEN_H = 0, 0
 WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 
@@ -22,6 +23,10 @@ def get_screen_size():
 
 
 class SelectionsSpriteLists(arcade.SpriteList):
+    """
+    Reason for this wrapper is additional method allowing displaying green
+    rectangle around 'selected' sprites.
+    """
 
     def draw_selections(self):
         for sprite in self.sprite_list:
@@ -48,6 +53,42 @@ class CharacterPortrait(arcade.Sprite):
         arcade.draw_lrtb_rectangle_outline(left, right, top, bottom, GREEN)
 
 
+class Button:
+    # TODO: implement restart-button [x]
+
+    def __init__(self, x, y, width, height, text=None, text_color=BLACK, function=None, outline_color=WHITE, fill_color=WHITE):
+        self.text = text
+        self.text_color = text_color
+        self.function = function
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.rect = (x - (width // 2), x + (width // 2), y + (height // 2), y - (height // 2))
+        self.outline_color = outline_color
+        self.fill_color = fill_color
+
+    def draw(self):
+        rect = self.rect
+        if self.outline_color is not None:
+            arcade.draw_lrtb_rectangle_outline(rect[0], rect[1], rect[2], rect[3], self.outline_color)
+
+        if self.fill_color is not None:
+            arcade.draw_lrtb_rectangle_filled(rect[0]+1, rect[1]-1, rect[2]+1, rect[3]-1, self.fill_color)
+
+        if self.text is not None:
+            x, y = (rect[0] + rect[1]) // 2, (rect[2] + rect[3]) // 2
+            arcade.draw_text(self.text, x, y, self.text_color, font_size=20, bold=True, anchor_x='center', anchor_y='center')
+
+    def is_cursor_above(self, x, y):
+        rect = self.rect
+        return rect[0] <= x <= rect[1] and rect[3] <= y <= rect[2]
+
+    def on_click(self):
+        if self.function is not None:
+            self.function()
+
+
 class Quiz(arcade.Window):
 
     def __init__(self, screen_width, screen_height, window_title):
@@ -56,15 +97,17 @@ class Quiz(arcade.Window):
         self.pointed_portrait = None
         self.correct_guesses = 0
         self.win_guesses_count = 0
+        self.reset_button = Button(screen_width // 2, screen_height // 2, 200, 50, 'RESET', function=self.restart_quiz)
         self.restart_quiz()
 
     def restart_quiz(self):
         self.characters_portraits = self.get_random_characters_portraits()
+        self.correct_guesses = 0
 
-    def get_random_characters_portraits(self, rows: int = 3, columns: int = 6) -> arcade.SpriteList:
+    def get_random_characters_portraits(self, rows: int = 3, columns: int = 6) -> SelectionsSpriteLists:
         """
-        TODO: return x randomly ordered characters images and assign them to buttons
-        :return: list
+        TODO: return x randomly ordered characters images and assign them to buttons [x]
+        :return: SelectionSpriteList
         """
         col_offset = (SCREEN_W - 100) / (columns + 1)
         row_offset = SCREEN_H / (rows + 1)
@@ -100,8 +143,8 @@ class Quiz(arcade.Window):
         return portraits
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
-        # TODO: check if mouse points at any character-portrait image [ ] if so, highlight it []
-        if self.characters_portraits:
+        # TODO: check if mouse points at any character-portrait image [x] if so, highlight it [x]
+        if self.characters_portraits is not None:
             self.pointed_portrait = None
             for portrait in self.characters_portraits:
                 if portrait.is_cursor_above(x, y):
@@ -109,41 +152,51 @@ class Quiz(arcade.Window):
                     break
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
-        if self.pointed_portrait is not None:
-            if self.pointed_portrait.is_correct:
-                if not self.pointed_portrait.selected:
-                    self.on_correct_choice()
-            else:
-                self.on_wrong_choice()
+        if self.characters_portraits is not None:
+            if self.pointed_portrait is not None:
+                if self.pointed_portrait.is_correct:
+                    if not self.pointed_portrait.selected:
+                        self.on_correct_choice()
+                else:
+                    self.on_wrong_choice()
+        elif self.reset_button.is_cursor_above(x, y):
+            self.reset_button.on_click()
 
     def on_correct_choice(self):
-        # TODO: select character [ ] and allow player to continue selecting [ ]
+        # TODO: select character [x] and allow player to continue selecting [x]
         self.correct_guesses += 1
         self.pointed_portrait.selected = True
         if self.correct_guesses == self.win_guesses_count:
-            raise NotImplementedError
+            self.on_quiz_completed()
 
     def on_wrong_choice(self):
-        # TODO: display error image [ ] and button to restart game [ ]
-        self.restart_quiz()
+        # TODO: display error image [x] and button to restart game [x]
+        self.characters_portraits = None
 
     def on_update(self, delta_time: float):
-        self.characters_portraits.update()
+        if self.characters_portraits is not None:
+            self.characters_portraits.update()
 
     def on_draw(self):
         arcade.start_render()
-        self.characters_portraits.draw()
-        self.characters_portraits.draw_selections()
+        if self.characters_portraits is not None:
+            self.characters_portraits.draw()
+            self.characters_portraits.draw_selections()  # show already clicked items
 
-        if self.pointed_portrait is not None:
-            self.draw_portrait_highlight()
+            if self.pointed_portrait is not None:
+                self.highlight_pointed_portrait()  # highlight pointed item
+        else:
+            self.reset_button.draw()
 
-    def draw_portrait_highlight(self):
+    def highlight_pointed_portrait(self):
         left = self.pointed_portrait.left - 5
         right = self.pointed_portrait.right + 5
         top = self.pointed_portrait.top + 5
         bottom = self.pointed_portrait.bottom - 5
         arcade.draw_lrtb_rectangle_outline(left, right, top, bottom, WHITE)
+
+    def on_quiz_completed(self):
+        raise NotImplementedError
 
 
 if __name__ == '__main__':
