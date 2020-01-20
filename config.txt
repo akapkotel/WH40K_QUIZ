@@ -1,0 +1,5 @@
+# List here all images names to be used in your quiz (one by line). First list all images which are incorrect choices in
+# the quiz, then list all correct ones. Each image must be written with it's extension e.g.: image_001.jpg
+# INCORRECT IMAGES:
+
+# CORRECT IMAGES:
