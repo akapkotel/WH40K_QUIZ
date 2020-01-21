@@ -15,11 +15,15 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
+TITLE = "WH40k Quiz"
 EXCELLENT = 'EXCELLENT!'
 INCORRECT = "INCORRECT!"
+draw_rect_outl = arcade.draw_lrtb_rectangle_outline
+draw_rect_fill = arcade.draw_lrtb_rectangle_filled
+draw_text = arcade.draw_text
 
 
-def get_screen_size():
+def get_screen_size() -> tuple:
     from ctypes import windll
     user32 = windll.user32
     return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
@@ -53,7 +57,7 @@ class CharacterPortrait(arcade.Sprite):
         right = self.right + 5
         top = self.top + 5
         bottom = self.bottom - 5
-        arcade.draw_lrtb_rectangle_outline(left, right, top, bottom, GREEN)
+        draw_rect_outl(left, right, top, bottom, GREEN)
 
 
 class Button:
@@ -79,17 +83,17 @@ class Button:
     def draw(self):
         rect = self.rect
         if self.outline_color is not None:
-            arcade.draw_lrtb_rectangle_outline(rect[0], rect[1], rect[2], rect[3], self.outline_color)
+            draw_rect_outl(rect[0], rect[1], rect[2], rect[3], self.outline_color)
 
         if self.fill_color is not None:
-            arcade.draw_lrtb_rectangle_filled(rect[0]-1, rect[1]+1, rect[2]-1, rect[3]+1, self.fill_color)
+            draw_rect_fill(rect[0]-1, rect[1]+1, rect[2]-1, rect[3]+1, self.fill_color)
 
         if self.is_highlighted:
-            arcade.draw_lrtb_rectangle_outline(rect[0]-5, rect[1]+5, rect[2]+5, rect[3]-5, self.outline_color)
+            draw_rect_outl(rect[0]-5, rect[1]+5, rect[2]+5, rect[3]-5, self.outline_color)
 
         if self.text is not None:
             x, y = (rect[0] + rect[1]) // 2, (rect[2] + rect[3]) // 2
-            arcade.draw_text(self.text, x, y, self.text_color, font_size=20, bold=True, anchor_x='center', anchor_y='center')
+            draw_text(self.text, x, y, self.text_color, font_size=20, bold=True, anchor_x='center', anchor_y='center')
 
     def is_cursor_above(self, x, y):
         rect = self.rect
@@ -120,38 +124,39 @@ class Quiz(arcade.Window):
 
     def get_random_characters_portraits(self, rows: int = 3, columns: int = 6) -> SelectionsSpriteLists:
         """
+        Search in 'correct' and 'incorrect' folders for image files to be loaded
+        and used as choice-options in the quiz and randomly displace them in the
+        choices-list.
         TODO: return x randomly ordered characters images and assign them to buttons [x]
         :return: SelectionSpriteList
         """
         col_offset = (SCREEN_W - 100) / (columns + 1)
         row_offset = SCREEN_H / (rows + 1)
-        this_folder = os.path.dirname(os.path.abspath(__file__))
-        images_path = this_folder + '/images/portraits/'
+        this_folder = os.getcwd()  # os.path.dirname(__file__)  # os.path.abspath()
+        correct_dir = this_folder + '/images/portraits/correct/'
+        incorrect_dir = this_folder + '/images/portraits/incorrect/'
 
         characters, correct_choices, incorrect_choices = [], set(), set()
-        correct = False
-        with open("config.txt", "r") as file:
-            for line in file.readlines():
-                if line.startswith("#") or line.startswith("INCORRECT") or line == "\n":
-                    continue
-                if line == "CORRECT IMAGES:\n":
-                    correct = True
-                    continue
-                if not correct:
-                    incorrect_choices.add(line.rstrip('\n'))
-                else:
-                    correct_choices.add(line.rstrip('\n'))
-                characters.append(line.rstrip('\n'))
+
+        for file in os.listdir(correct_dir):
+            characters.append(file)
+            correct_choices.add(file)
         self.win_guesses_count = len(correct_choices)
+
+        for file in os.listdir(incorrect_dir):
+            characters.append(file)
+            incorrect_choices.add(file)
 
         portraits = SelectionsSpriteLists()
         if characters:
             random.shuffle(characters)  # each game would mix portraits in random order
             for i in range(rows):
                 for j in range(columns):
+                    if not characters:
+                        return portraits
                     name = characters.pop()
-                    image = images_path + name
                     correct = name in correct_choices
+                    image = correct_dir + name if correct else incorrect_dir + name
                     x, y = (j + 1) * row_offset, (i + 1) * col_offset
                     portraits.append(CharacterPortrait(image, x, y, correct))
         return portraits
@@ -211,14 +216,14 @@ class Quiz(arcade.Window):
 
     def draw_communicate(self):
         color = RED if self.communicate == INCORRECT else GREEN
-        arcade.draw_text(self.communicate, (SCREEN_W // 2), SCREEN_H // 3, color, 30, bold=True, anchor_x='center')
+        draw_text(self.communicate, (SCREEN_W // 2), (SCREEN_H // 3) * 2, color, 30, bold=True, anchor_x='center')
 
     def highlight_pointed_portrait(self):
         left = self.pointed_portrait.left - 5
         right = self.pointed_portrait.right + 5
         top = self.pointed_portrait.top + 5
         bottom = self.pointed_portrait.bottom - 5
-        arcade.draw_lrtb_rectangle_outline(left, right, top, bottom, WHITE)
+        draw_rect_outl(left, right, top, bottom, WHITE)
 
     def on_quiz_completed(self):
         self.characters_portraits = None
@@ -226,7 +231,6 @@ class Quiz(arcade.Window):
 
 
 if __name__ == '__main__':
-    TITLE = "WH40k Quiz"
     SCREEN_W, SCREEN_H = get_screen_size()
     quiz = Quiz(SCREEN_W, SCREEN_H, TITLE)
     arcade.run()
