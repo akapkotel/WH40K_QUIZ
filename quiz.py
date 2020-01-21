@@ -1,8 +1,9 @@
 """
-This is a simple window-application made in Python 3.7 with Arcade 2.3.5 library. Application is a simple quiz about
-guessing correct characters from WH40k setting. User clicks on the portraits trying to select only characters aligned
-to the chosen fraction. As long as his choices are correct, he can continue picking characters. When he makes a mistake,
-quiz is restarted.
+This is a simple window-application made in Python 3.7 with Arcade 2.3.5 library.
+Application is a simple quiz about guessing correct characters from WH40k setting.
+User clicks on the portraits trying to select only characters aligned to the
+chosen fraction. As long as his choices are correct, he can continue picking
+characters. When he makes a mistake, quiz is restarted.
 """
 import os
 import random
@@ -14,6 +15,8 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
+EXCELLENT = 'EXCELLENT!'
+INCORRECT = "INCORRECT!"
 
 
 def get_screen_size():
@@ -56,7 +59,8 @@ class CharacterPortrait(arcade.Sprite):
 class Button:
     # TODO: implement restart-button [x]
 
-    def __init__(self, x, y, width, height, text=None, text_color=BLACK, function=None, outline_color=WHITE, fill_color=WHITE):
+    def __init__(self, x, y, width, height, text=None, text_color=BLACK,
+                 function=None, outline_color=WHITE, fill_color=WHITE):
         self.text = text
         self.text_color = text_color
         self.function = function
@@ -64,9 +68,13 @@ class Button:
         self.y = y
         self.width = width
         self.height = height
-        self.rect = (x - (width // 2), x + (width // 2), y + (height // 2), y - (height // 2))
+        self.rect = (
+            x - (width // 2), x + (width // 2),
+            y + (height // 2), y - (height // 2)
+        )  # (left, right, top, bottom)
         self.outline_color = outline_color
         self.fill_color = fill_color
+        self.is_highlighted = False
 
     def draw(self):
         rect = self.rect
@@ -74,7 +82,10 @@ class Button:
             arcade.draw_lrtb_rectangle_outline(rect[0], rect[1], rect[2], rect[3], self.outline_color)
 
         if self.fill_color is not None:
-            arcade.draw_lrtb_rectangle_filled(rect[0]+1, rect[1]-1, rect[2]+1, rect[3]-1, self.fill_color)
+            arcade.draw_lrtb_rectangle_filled(rect[0]-1, rect[1]+1, rect[2]-1, rect[3]+1, self.fill_color)
+
+        if self.is_highlighted:
+            arcade.draw_lrtb_rectangle_outline(rect[0]-5, rect[1]+5, rect[2]+5, rect[3]-5, self.outline_color)
 
         if self.text is not None:
             x, y = (rect[0] + rect[1]) // 2, (rect[2] + rect[3]) // 2
@@ -95,13 +106,16 @@ class Quiz(arcade.Window):
         super().__init__(screen_width, screen_height, window_title)
         self.characters_portraits = None
         self.pointed_portrait = None
+        self.communicate = None
         self.correct_guesses = 0
         self.win_guesses_count = 0
-        self.reset_button = Button(screen_width // 2, screen_height // 2, 200, 50, 'RESET', function=self.restart_quiz)
+        self.reset_button = Button(screen_width // 2, screen_height // 2, 200, 50, 'RESTART', function=self.restart_quiz)
         self.restart_quiz()
 
     def restart_quiz(self):
         self.characters_portraits = self.get_random_characters_portraits()
+        self.reset_button.is_highlighted = False
+        self.communicate = ''
         self.correct_guesses = 0
 
     def get_random_characters_portraits(self, rows: int = 3, columns: int = 6) -> SelectionsSpriteLists:
@@ -112,7 +126,6 @@ class Quiz(arcade.Window):
         col_offset = (SCREEN_W - 100) / (columns + 1)
         row_offset = SCREEN_H / (rows + 1)
         this_folder = os.path.dirname(os.path.abspath(__file__))
-
         images_path = this_folder + '/images/portraits/'
 
         characters, correct_choices, incorrect_choices = [], set(), set()
@@ -139,7 +152,8 @@ class Quiz(arcade.Window):
                     name = characters.pop()
                     image = images_path + name
                     correct = name in correct_choices
-                    portraits.append(CharacterPortrait(image, (j+1) * row_offset, (i+1) * col_offset, correct))
+                    x, y = (j + 1) * row_offset, (i + 1) * col_offset
+                    portraits.append(CharacterPortrait(image, x, y, correct))
         return portraits
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
@@ -150,6 +164,11 @@ class Quiz(arcade.Window):
                 if portrait.is_cursor_above(x, y):
                     self.pointed_portrait = portrait
                     break
+        elif not self.reset_button.is_highlighted:
+            if self.reset_button.is_cursor_above(x, y):
+                self.reset_button.is_highlighted = True
+        elif not self.reset_button.is_cursor_above(x, y):
+            self.reset_button.is_highlighted = False
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
         if self.characters_portraits is not None:
@@ -159,7 +178,7 @@ class Quiz(arcade.Window):
                         self.on_correct_choice()
                 else:
                     self.on_wrong_choice()
-        elif self.reset_button.is_cursor_above(x, y):
+        elif self.reset_button.is_highlighted:
             self.reset_button.on_click()
 
     def on_correct_choice(self):
@@ -172,6 +191,7 @@ class Quiz(arcade.Window):
     def on_wrong_choice(self):
         # TODO: display error image [x] and button to restart game [x]
         self.characters_portraits = None
+        self.communicate = INCORRECT
 
     def on_update(self, delta_time: float):
         if self.characters_portraits is not None:
@@ -186,7 +206,12 @@ class Quiz(arcade.Window):
             if self.pointed_portrait is not None:
                 self.highlight_pointed_portrait()  # highlight pointed item
         else:
+            self.draw_communicate()
             self.reset_button.draw()
+
+    def draw_communicate(self):
+        color = RED if self.communicate == INCORRECT else GREEN
+        arcade.draw_text(self.communicate, (SCREEN_W // 2), SCREEN_H // 3, color, 30, bold=True, anchor_x='center')
 
     def highlight_pointed_portrait(self):
         left = self.pointed_portrait.left - 5
@@ -196,7 +221,8 @@ class Quiz(arcade.Window):
         arcade.draw_lrtb_rectangle_outline(left, right, top, bottom, WHITE)
 
     def on_quiz_completed(self):
-        raise NotImplementedError
+        self.characters_portraits = None
+        self.communicate = EXCELLENT
 
 
 if __name__ == '__main__':
@@ -204,4 +230,3 @@ if __name__ == '__main__':
     SCREEN_W, SCREEN_H = get_screen_size()
     quiz = Quiz(SCREEN_W, SCREEN_H, TITLE)
     arcade.run()
-
