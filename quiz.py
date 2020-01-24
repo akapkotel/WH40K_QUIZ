@@ -24,9 +24,20 @@ draw_text = arcade.draw_text
 
 
 def get_screen_size() -> tuple:
-    from ctypes import windll
-    user32 = windll.user32
-    return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+    import platform
+
+    if platform.system() == "Linux":
+        screen = os.popen("xrandr -q -d :0").readlines()[0]
+        width = screen.split()[7]
+        height = screen.split()[9][:-1]
+        return int(width), int(height)
+    else:
+        from PIL import ImageGrab
+        screen = ImageGrab.grab()
+        return int(screen.width), int(screen.height)
+        # from ctypes import windll
+        # user32 = windll.user32
+        # return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
 
 
 class SelectionsSpriteLists(arcade.SpriteList):
@@ -204,6 +215,8 @@ class Quiz(arcade.Window):
 
     def on_draw(self):
         arcade.start_render()
+        self.draw_colors()
+
         if self.characters_portraits is not None:
             self.characters_portraits.draw()
             self.characters_portraits.draw_selections()  # show already clicked items
