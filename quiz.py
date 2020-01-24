@@ -215,7 +215,6 @@ class Quiz(arcade.Window):
 
     def on_draw(self):
         arcade.start_render()
-        self.draw_colors()
 
         if self.characters_portraits is not None:
             self.characters_portraits.draw()
