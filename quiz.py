@@ -19,11 +19,6 @@ import random
 
 import arcade
 
-# we put external files (images and config.txt) to the higher-level directory, to get clear directory-structure after
-# building executable with pyinstaller - user can only open zipped folder and see 4 elements there, without searching
-# through a lot of pyinstaller-created files to find config.txt and images folder:
-PATH = os.path.dirname(os.path.abspath(__file__)).rstrip("\WH40K_QUIZ")
-print(PATH)
 SCREEN_W, SCREEN_H = 0, 0
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -151,7 +146,7 @@ class Quiz(arcade.Window):
 
     def load_config(self):
         try:
-            with open(PATH + "config.txt", "r") as file:
+            with open("config.txt", "r") as file:
                 data = file.readlines()
                 for line in data:
                     variable, value = line.split("=")[0], int(line.split("=")[1])
@@ -170,7 +165,7 @@ class Quiz(arcade.Window):
         """
         col_offset = (SCREEN_W - 100) / (columns + 1)
         row_offset = SCREEN_H / (rows + 1)
-        this_folder = PATH  # os.getcwd()  # os.path.dirname(__file__)  # os.path.abspath()
+        this_folder = os.getcwd()  # os.path.dirname(__file__)  # os.path.abspath()
         correct_dir = this_folder + '/images/portraits/correct/'
         incorrect_dir = this_folder + '/images/portraits/incorrect/'
 
