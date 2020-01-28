@@ -1,0 +1,1 @@
+required_correct_hits=3

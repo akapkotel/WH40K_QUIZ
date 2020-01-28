@@ -5,11 +5,25 @@ User clicks on the portraits trying to select only characters aligned to the
 chosen fraction. As long as his choices are correct, he can continue picking
 characters. When he makes a mistake, quiz is restarted.
 """
+__author__ = "Rafał Trąbski"
+__copyright__ = "Copyright 2020"
+__credits__ = []
+__license__ = "Share Alike Attribution-NonCommercial-ShareAlike 4.0"
+__version__ = "0.0.1"
+__maintainer__ = "Rafał Trąbski"
+__email__ = "rafal.trabski@mises.pl"
+__status__ = "Development"
+
 import os
 import random
+
 import arcade
 
-
+# we put external files (images and config.txt) to the higher-level directory, to get clear directory-structure after
+# building executable with pyinstaller - user can only open zipped folder and see 4 elements there, without searching
+# through a lot of pyinstaller-created files to find config.txt and images folder:
+PATH = os.path.dirname(os.path.abspath(__file__)).rstrip("\WH40K_QUIZ")
+print(PATH)
 SCREEN_W, SCREEN_H = 0, 0
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -123,8 +137,10 @@ class Quiz(arcade.Window):
         self.pointed_portrait = None
         self.communicate = None
         self.correct_guesses = 0
-        self.win_guesses_count = 0
-        self.reset_button = Button(screen_width // 2, screen_height // 2, 200, 50, 'RESTART', function=self.restart_quiz)
+        self.required_correct_hits = None
+        self.reset_button = Button(screen_width // 2, screen_height // 2, 200, 50, 'RESTART',
+                                   function=self.restart_quiz)
+        self.load_config()
         self.restart_quiz()
 
     def restart_quiz(self):
@@ -132,6 +148,17 @@ class Quiz(arcade.Window):
         self.reset_button.is_highlighted = False
         self.communicate = ''
         self.correct_guesses = 0
+
+    def load_config(self):
+        try:
+            with open(PATH + "config.txt", "r") as file:
+                data = file.readlines()
+                for line in data:
+                    variable, value = line.split("=")[0], int(line.split("=")[1])
+                    self.__dict__[variable] = value
+                    print(f"Load value of {variable} as {value}.")
+        except IOError:
+            return
 
     def get_random_characters_portraits(self, rows: int = 3, columns: int = 6) -> SelectionsSpriteLists:
         """
@@ -143,7 +170,7 @@ class Quiz(arcade.Window):
         """
         col_offset = (SCREEN_W - 100) / (columns + 1)
         row_offset = SCREEN_H / (rows + 1)
-        this_folder = os.getcwd()  # os.path.dirname(__file__)  # os.path.abspath()
+        this_folder = PATH  # os.getcwd()  # os.path.dirname(__file__)  # os.path.abspath()
         correct_dir = this_folder + '/images/portraits/correct/'
         incorrect_dir = this_folder + '/images/portraits/incorrect/'
 
@@ -152,7 +179,9 @@ class Quiz(arcade.Window):
         for file in os.listdir(correct_dir):
             characters.append(file)
             correct_choices.add(file)
-        self.win_guesses_count = len(correct_choices)
+
+        if self.required_correct_hits is None:
+            self.required_correct_hits = len(correct_choices)
 
         for file in os.listdir(incorrect_dir):
             characters.append(file)
@@ -197,11 +226,15 @@ class Quiz(arcade.Window):
         elif self.reset_button.is_highlighted:
             self.reset_button.on_click()
 
+    def on_key_press(self, symbol: int, modifiers: int):
+        if symbol == arcade.key.ESCAPE:
+            arcade.close_window()
+
     def on_correct_choice(self):
         # TODO: select character [x] and allow player to continue selecting [x]
         self.correct_guesses += 1
         self.pointed_portrait.selected = True
-        if self.correct_guesses == self.win_guesses_count:
+        if self.correct_guesses == self.required_correct_hits:
             self.on_quiz_completed()
 
     def on_wrong_choice(self):
@@ -226,9 +259,20 @@ class Quiz(arcade.Window):
             self.draw_communicate()
             self.reset_button.draw()
 
+        self.draw_app_version()
+        self.draw_credits()
+
     def draw_communicate(self):
         color = RED if self.communicate == INCORRECT else GREEN
         draw_text(self.communicate, (SCREEN_W // 2), (SCREEN_H // 3) * 2, color, 30, bold=True, anchor_x='center')
+
+    @staticmethod
+    def draw_app_version():
+        draw_text('v.' + __version__, 20, 20, WHITE)
+
+    def draw_credits(self):
+        x = self.width - len(__author__) * 10
+        draw_text(__author__, x, 20, WHITE)
 
     def highlight_pointed_portrait(self):
         left = self.pointed_portrait.left - 5
@@ -245,4 +289,5 @@ class Quiz(arcade.Window):
 if __name__ == '__main__':
     SCREEN_W, SCREEN_H = get_screen_size()
     quiz = Quiz(SCREEN_W, SCREEN_H, TITLE)
+    quiz.set_fullscreen()
     arcade.run()
